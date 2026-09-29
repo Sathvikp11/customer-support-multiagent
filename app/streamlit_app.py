@@ -60,6 +60,20 @@ def reingest_documents() -> dict:
     return asyncio.run(_reingest_via_mcp())
 
 
+async def _remove_via_mcp(filename: str) -> dict:
+    client = MultiServerMCPClient(
+        {"support_tools": {"transport": "streamable_http", "url": MCP_SERVER_URL}}
+    )
+    tools = await client.get_tools()
+    tool = next(t for t in tools if t.name == "remove_policy_document")
+    result = await tool.ainvoke({"filename": filename})
+    return json.loads(result)
+
+
+def remove_document(filename: str) -> dict:
+    return asyncio.run(_remove_via_mcp(filename))
+
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []  # list[HumanMessage | AIMessage]
 
@@ -85,7 +99,15 @@ with st.sidebar:
     existing_docs = sorted(docs_dir.glob("*.pdf")) if docs_dir.exists() else []
     if existing_docs:
         for doc in existing_docs:
-            st.text(f"• {doc.name}")
+            doc_col, remove_col = st.columns([5, 1])
+            doc_col.text(doc.name)
+            if remove_col.button("🗑", key=f"remove_{doc.name}", help=f"Remove {doc.name}"):
+                with st.spinner(f"Removing {doc.name}..."):
+                    try:
+                        remove_document(doc.name)
+                    except Exception as exc:
+                        st.error(f"Failed to remove: {exc}")
+                st.rerun()
     else:
         st.caption("No documents ingested yet.")
 

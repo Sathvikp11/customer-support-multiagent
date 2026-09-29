@@ -62,6 +62,19 @@ def ingest_directory(directory: str = POLICY_DOCS_DIR) -> dict:
     return results
 
 
+def remove_document(filename: str) -> int:
+    """Delete a document's chunks from the vector store and its file from disk.
+    Returns the number of chunks removed."""
+    store = get_vector_store()
+    existing = store.get(where={"source": filename})
+    if existing["ids"]:
+        store.delete(ids=existing["ids"])
+    file_path = Path(POLICY_DOCS_DIR) / filename
+    if file_path.exists():
+        file_path.unlink()
+    return len(existing["ids"])
+
+
 def reset_collection():
     """Drop and recreate the collection (used when re-ingesting from scratch)."""
     global _vector_store

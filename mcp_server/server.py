@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from mcp.server.fastmcp import FastMCP
 
 from agents.config import DATABASE_PATH, MCP_SERVER_HOST, MCP_SERVER_PORT
-from mcp_server.knowledge_base import ingest_directory, search
+from mcp_server.knowledge_base import ingest_directory, remove_document, search
 
 mcp = FastMCP("customer-support-tools", host=MCP_SERVER_HOST, port=MCP_SERVER_PORT)
 
@@ -166,6 +166,19 @@ def reingest_policy_documents() -> str:
 
     results = ingest_directory()
     return json.dumps(results, default=str)
+
+
+@mcp.tool()
+def remove_policy_document(filename: str) -> str:
+    """Remove a document from the knowledge base: deletes its chunks from the vector
+    store and its file from disk. Use the exact filename as shown in the document list
+    (e.g. 'refund_policy.pdf')."""
+    import json
+
+    n_removed = remove_document(filename)
+    if n_removed == 0:
+        return json.dumps({"error": f"No document named '{filename}' was found."})
+    return json.dumps({"removed": filename, "chunks_deleted": n_removed})
 
 
 if __name__ == "__main__":
