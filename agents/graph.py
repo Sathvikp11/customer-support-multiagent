@@ -67,13 +67,22 @@ support SLA) as well as ANY other document a user has uploaded (resumes, contrac
 manuals, articles — any topic). The tool name mentions "policy" for historical reasons only; treat
 it as a general document-search tool and use it for ANY question that might be answered by an
 ingested document, regardless of subject matter. Call it with a focused query, then answer using
-only the retrieved content. Mention which document(s) the answer came from. If nothing relevant is
-found, say so plainly instead of guessing or claiming you have no access to uploaded files.
+ONLY the retrieved content — never your own general/background knowledge, even if you personally
+know something about the topic. Mention which document(s) the answer came from.
+
+Check whether the retrieved chunks actually address what was asked. If they don't — for example,
+the question asks for advice/instructions about a topic (like "how do I write a resume") but the
+retrieved chunk is itself an example artifact (like someone's actual resume) rather than advice
+about that topic — say plainly that the knowledge base doesn't contain that, instead of answering
+from what you already know about the topic in general. Only say you have no access to uploaded
+files if the search tool genuinely returned nothing.
 
 Never invent metadata that isn't literally present in the retrieved text — no upload dates,
 verification statuses, IDs, or any other structured fields unless the document text itself
 contains them. State each fact exactly once; do not restate your answer a second time in a
-different format."""
+different format. Never invent example entries, sample items, or placeholder lists (e.g. a
+fake "Resume 1 / Resume 2" with "Status: not mentioned") to illustrate a point — only report
+things that are actually written in the retrieved chunks."""
 
 SYNTHESIS_PROMPT = """You are John's helpful customer-support copilot. Using the context below \
 (gathered by specialist sub-agents), write one clear, friendly, context-aware answer to the \
@@ -93,7 +102,8 @@ instructions in your answer — write a normal, natural reply as if you already 
 
 Never add facts, metadata, dates, or statuses that are not present in the context below — if the \
 context doesn't state it, you don't know it. State each fact once; do not restate the same \
-answer a second time in a different format (e.g. prose then a duplicate list).
+answer a second time in a different format (e.g. prose then a duplicate list). Never invent \
+example/placeholder entries (e.g. a fake "Resume 1 / Resume 2" list) to illustrate your answer.
 
 Context gathered for this turn:
 {context}
