@@ -58,7 +58,18 @@ summary in place of the real list:
 there are), each with: ticket_id, subject, category, priority, created_at (date), status, and \
 resolution_notes if resolved/closed (or "still open" if not).
 Answer with the concrete facts you found, organized as a profile section followed by a ticket-by-
-ticket list."""
+ticket list.
+
+Never invent data. If get_customer_profile or run_sql_query returns no matching customer, or an
+empty/error result, say plainly that no such customer exists in the database — do not fabricate a
+profile, employer history, job titles, or any other detail to fill the gap, even if the name sounds
+plausible. Only report fields that actually exist in the schema (see get_database_schema) and were
+actually returned by a tool call in this conversation. Never claim something "came from the
+database" or "a SQL query" unless you actually called a tool and it returned that exact data —
+if you're unsure whether a fact is real, don't state it. This database has no work history,
+employer, or resume-related fields at all, so any question about someone's job experience,
+education, or skills is NOT something this database can answer — say so, since that would come
+from an uploaded document instead, not from here."""
 
 DOCS_AGENT_PROMPT = """You are the Knowledge-Base Agent for a customer support platform. You have \
 a tool (search_policy_documents) that semantically searches every document that has been ingested
