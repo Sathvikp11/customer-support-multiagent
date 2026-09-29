@@ -33,15 +33,23 @@ def get_vector_store() -> Chroma:
 
 
 def ingest_pdf(path: Path) -> int:
-    """Load, chunk, embed, and persist a single PDF. Returns number of chunks added."""
+    """Load, chunk, embed, and persist a single PDF. Returns number of chunks added.
+
+    Idempotent: re-ingesting a file with the same name first removes its previously
+    ingested chunks, so re-uploading a document never creates duplicates."""
+    source_name = Path(path).name
+    store = get_vector_store()
+    existing = store.get(where={"source": source_name})
+    if existing["ids"]:
+        store.delete(ids=existing["ids"])
+
     loader = PyPDFLoader(str(path))
     pages = loader.load()
     for page in pages:
-        page.metadata["source"] = Path(path).name
+        page.metadata["source"] = source_name
     chunks = _splitter.split_documents(pages)
     if not chunks:
         return 0
-    store = get_vector_store()
     store.add_documents(chunks)
     return len(chunks)
 

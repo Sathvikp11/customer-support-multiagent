@@ -5,6 +5,7 @@ Run:
 (Requires the MCP server to already be running: python -m mcp_server.server)
 """
 import asyncio
+import json
 import sys
 from pathlib import Path
 
@@ -13,10 +14,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import requests
 import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from agents.config import LLM_PROVIDER, MCP_SERVER_URL, OLLAMA_MODEL, OPENAI_MODEL, POLICY_DOCS_DIR
 from agents.graph import SupportAssistant
-from mcp_server.knowledge_base import ingest_pdf
 
 st.set_page_config(page_title="Customer Support Copilot", page_icon="🎧", layout="wide")
 
@@ -39,6 +40,24 @@ async def run_turn(messages: list) -> str:
 
 def ask_assistant(messages: list) -> str:
     return asyncio.run(run_turn(messages))
+
+
+async def _reingest_via_mcp() -> dict:
+    # Ingestion is delegated to the MCP server's own tool rather than touching the Chroma
+    # store from this process directly: Chroma's embedded mode isn't safe for two separate
+    # OS processes (this Streamlit app and the long-running MCP server) to write to the
+    # same persisted collection concurrently, so the MCP server must be the sole writer.
+    client = MultiServerMCPClient(
+        {"support_tools": {"transport": "streamable_http", "url": MCP_SERVER_URL}}
+    )
+    tools = await client.get_tools()
+    tool = next(t for t in tools if t.name == "reingest_policy_documents")
+    result = await tool.ainvoke({})
+    return json.loads(result)
+
+
+def reingest_documents() -> dict:
+    return asyncio.run(_reingest_via_mcp())
 
 
 if "chat_history" not in st.session_state:
@@ -75,12 +94,16 @@ with st.sidebar:
     )
     if uploaded_files and st.button("Ingest uploaded PDF(s)"):
         docs_dir.mkdir(parents=True, exist_ok=True)
-        with st.spinner("Chunking, embedding, and indexing document(s)..."):
-            for uploaded in uploaded_files:
-                dest = docs_dir / uploaded.name
-                dest.write_bytes(uploaded.getvalue())
-                n_chunks = ingest_pdf(dest)
-                st.success(f"Ingested {uploaded.name}: {n_chunks} chunks")
+        for uploaded in uploaded_files:
+            (docs_dir / uploaded.name).write_bytes(uploaded.getvalue())
+        with st.spinner("Asking the MCP server to chunk, embed, and index the document(s)..."):
+            try:
+                results = reingest_documents()
+            except Exception as exc:
+                st.error(f"Ingestion failed: {exc}")
+                results = {}
+        for name, n_chunks in results.items():
+            st.success(f"Ingested {name}: {n_chunks} chunks")
         st.rerun()
 
     st.divider()
