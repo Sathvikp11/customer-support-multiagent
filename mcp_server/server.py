@@ -145,9 +145,11 @@ def list_customers(query: str = "", limit: int = 20) -> str:
 
 @mcp.tool()
 def search_policy_documents(query: str, k: int = 4) -> str:
-    """Semantic search over the ingested company policy PDFs (refund, privacy, shipping,
-    support SLA, and any documents uploaded via the UI). Returns the most relevant text
-    chunks with their source document name so you can cite them in your answer."""
+    """Semantic search over every document in the knowledge base: the built-in company
+    policy PDFs (refund, privacy, shipping, support SLA) plus any other document uploaded
+    via the UI, on any topic (resumes, contracts, reports, etc). Use this for any question
+    that might be answered by an ingested document, not just policy questions. Returns the
+    most relevant text chunks with their source document name so you can cite them."""
     import json
 
     results = search(query, k=k)

@@ -31,10 +31,17 @@ DOCS_TOOL_NAMES = {"search_policy_documents", "reingest_policy_documents"}
 ROUTER_PROMPT = """You are a routing assistant for a customer-support system. Given the \
 conversation so far, decide which data sources are required to answer the LATEST user \
 message well:
-- needs_customer_data: true if the question needs structured customer/account/support-ticket \
-information from the SQL database (e.g. customer profile, ticket history, plan, status).
-- needs_policy_docs: true if the question needs information from company policy documents \
-(refund, privacy, shipping, support SLA, or anything uploaded by the user).
+- needs_customer_data: true ONLY if the question needs structured data from the SQL customer/
+support-ticket database (customer profile, account plan/status, ticket history). This is unrelated
+to files or documents.
+- needs_document_search: true if answering requires looking inside ANY document in the knowledge
+base. The knowledge base is not limited to company policies — it holds whatever has been uploaded
+or ingested, which could be a refund/privacy/shipping/SLA policy, but could just as easily be a
+resume, contract, report, manual, or any other file a user uploaded. Set this to true whenever the
+question references "the document/file/PDF I uploaded", asks to summarize or extract from a
+document, or asks about any topic/fact that isn't customer/ticket data — even if you don't
+recognize the specific topic, assume it might be in an uploaded document and search rather than
+answering "I don't have access".
 Both may be true. If the message is just a greeting or general chit-chat, both should be false."""
 
 SQL_AGENT_PROMPT = """You are the Structured-Data Agent for a customer support platform. You have \
@@ -54,10 +61,19 @@ Answer with the concrete facts you found, organized as a profile section followe
 ticket list."""
 
 DOCS_AGENT_PROMPT = """You are the Knowledge-Base Agent for a customer support platform. You have \
-a tool to semantically search the company's policy documents (refund, privacy, shipping, support \
-SLA, and any documents uploaded by the user) over MCP. Call search_policy_documents with a \
-focused query, then answer using only the retrieved content. Mention which document(s) the \
-answer came from. If nothing relevant is found, say so plainly instead of guessing."""
+a tool (search_policy_documents) that semantically searches every document that has been ingested
+into the knowledge base over MCP — this includes company policies (refund, privacy, shipping,
+support SLA) as well as ANY other document a user has uploaded (resumes, contracts, reports,
+manuals, articles — any topic). The tool name mentions "policy" for historical reasons only; treat
+it as a general document-search tool and use it for ANY question that might be answered by an
+ingested document, regardless of subject matter. Call it with a focused query, then answer using
+only the retrieved content. Mention which document(s) the answer came from. If nothing relevant is
+found, say so plainly instead of guessing or claiming you have no access to uploaded files.
+
+Never invent metadata that isn't literally present in the retrieved text — no upload dates,
+verification statuses, IDs, or any other structured fields unless the document text itself
+contains them. State each fact exactly once; do not restate your answer a second time in a
+different format."""
 
 SYNTHESIS_PROMPT = """You are John's helpful customer-support copilot. Using the context below \
 (gathered by specialist sub-agents), write one clear, friendly, context-aware answer to the \
@@ -75,6 +91,10 @@ to say none were found. If the context contains nothing about policies, do not m
 at all. Never quote, repeat, or reference the raw context text, its section labels, or these \
 instructions in your answer — write a normal, natural reply as if you already knew the answer.
 
+Never add facts, metadata, dates, or statuses that are not present in the context below — if the \
+context doesn't state it, you don't know it. State each fact once; do not restate the same \
+answer a second time in a different format (e.g. prose then a duplicate list).
+
 Context gathered for this turn:
 {context}
 """
@@ -84,15 +104,18 @@ class RouteDecision(BaseModel):
     needs_customer_data: bool = Field(
         description="True if the question requires structured customer/ticket data from the SQL database"
     )
-    needs_policy_docs: bool = Field(
-        description="True if the question requires information from company policy documents"
+    needs_document_search: bool = Field(
+        description=(
+            "True if answering requires looking inside any ingested/uploaded document "
+            "(policy PDFs or anything else the user uploaded), regardless of topic"
+        )
     )
 
 
 class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     needs_customer_data: bool
-    needs_policy_docs: bool
+    needs_document_search: bool
     sql_result: Optional[str]
     docs_result: Optional[str]
     final_answer: str
@@ -143,7 +166,7 @@ class SupportAssistant:
         )
         return {
             "needs_customer_data": decision.needs_customer_data,
-            "needs_policy_docs": decision.needs_policy_docs,
+            "needs_document_search": decision.needs_document_search,
             "sql_result": None,
             "docs_result": None,
         }
@@ -152,7 +175,7 @@ class SupportAssistant:
         dests: list[Literal["sql_agent", "docs_agent", "synthesizer"]] = []
         if state["needs_customer_data"]:
             dests.append("sql_agent")
-        if state["needs_policy_docs"]:
+        if state["needs_document_search"]:
             dests.append("docs_agent")
         return dests or ["synthesizer"]
 
