@@ -11,7 +11,7 @@ and a **Streamlit** chat UI.
 
 ## Demo video
 
-`<PASTE YOUR DEMO VIDEO URL HERE>`
+https://www.loom.com/share/9431180043b94346a14be4b0fc39553a
 
 ## Architecture
 
