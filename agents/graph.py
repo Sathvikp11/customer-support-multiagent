@@ -84,7 +84,7 @@ different format. Never invent example entries, sample items, or placeholder lis
 fake "Resume 1 / Resume 2" with "Status: not mentioned") to illustrate a point — only report
 things that are actually written in the retrieved chunks."""
 
-SYNTHESIS_PROMPT = """You are John's helpful customer-support copilot. Using the context below \
+SYNTHESIS_PROMPT = """You are a helpful customer-support copilot. Using the context below \
 (gathered by specialist sub-agents), write one clear, friendly, context-aware answer to the \
 user's latest message. Cite which source (database or policy document) backed each fact when \
 relevant. If the context says nothing relevant was found, say so honestly rather than making \
