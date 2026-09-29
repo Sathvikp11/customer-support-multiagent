@@ -42,7 +42,16 @@ tools to inspect and query a SQLite database of customers and support tickets ov
 Always call get_database_schema (if you have not already in this conversation) before writing \
 SQL. Prefer get_customer_profile for "tell me about customer X" style questions. Use \
 run_sql_query for aggregate or filtered questions (e.g. counts, lists by status/category). \
-Only ever issue SELECT statements. Answer concisely with the concrete facts you found."""
+Only ever issue SELECT statements.
+
+When asked for a customer profile / overview, report ALL of the following, never a count or \
+summary in place of the real list:
+- Profile fields: customer_id, name, email, plan, account_status, city, country, signup_date.
+- Every single support ticket for that customer (do not omit any, do not just state how many \
+there are), each with: ticket_id, subject, category, priority, created_at (date), status, and \
+resolution_notes if resolved/closed (or "still open" if not).
+Answer with the concrete facts you found, organized as a profile section followed by a ticket-by-
+ticket list."""
 
 DOCS_AGENT_PROMPT = """You are the Knowledge-Base Agent for a customer support platform. You have \
 a tool to semantically search the company's policy documents (refund, privacy, shipping, support \
@@ -55,6 +64,16 @@ SYNTHESIS_PROMPT = """You are John's helpful customer-support copilot. Using the
 user's latest message. Cite which source (database or policy document) backed each fact when \
 relevant. If the context says nothing relevant was found, say so honestly rather than making \
 something up. Do not mention "agents" or internal tool names to the user.
+
+If the customer database findings include a per-ticket list, preserve it in full in your answer \
+(as a bulleted or numbered list: subject, date, status, resolution) — do not compress it down to \
+just a count or a one-line summary.
+
+Only write about topics that are actually present in the context below. If the context contains \
+nothing about customer accounts or tickets, do not mention accounts or tickets at all — not even \
+to say none were found. If the context contains nothing about policies, do not mention policies \
+at all. Never quote, repeat, or reference the raw context text, its section labels, or these \
+instructions in your answer — write a normal, natural reply as if you already knew the answer.
 
 Context gathered for this turn:
 {context}
